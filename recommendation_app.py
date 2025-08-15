@@ -1,90 +1,114 @@
+import os
 import requests
 import cohere
 import streamlit as st
 
 # Load API keys from Streamlit secrets
 RAPID_API_KEY = st.secrets["api_keys"]["rapidapi_key"]
+TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api_key"]
 COHERE_API_KEY = st.secrets["api_keys"]["cohere_api"]
+YOUTUBE_API_KEY = st.secrets["api_keys"]["youtube_api"]
 
-# IMDb Similar Movie Search via RapidAPI
+# Initialize Cohere client
+co = cohere.Client(COHERE_API_KEY)
+
+
+# ----------------- IMDb Similar Movies via RapidAPI -----------------
 def search_imdb_similar(movie_title):
     url = "https://imdb8.p.rapidapi.com/title/find"
+    querystring = {"q": movie_title}
     headers = {
-        "x-rapidapi-key": RAPID_API_KEY,
-        "x-rapidapi-host": "imdb8.p.rapidapi.com"
+        "x-rapidapi-host": "imdb8.p.rapidapi.com",
+        "x-rapidapi-key": RAPID_API_KEY
     }
-    params = {"q": movie_title}
 
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
+    response = requests.get(url, headers=headers, params=querystring)
+    if response.status_code == 200:
+        data = response.json()
+        results = []
+        if "results" in data:
+            for item in data["results"][:5]:
+                if "title" in item and "id" in item:
+                    results.append({
+                        "title": item["title"],
+                        "id": item["id"],
+                        "year": item.get("year", "N/A")
+                    })
+        return results
+    else:
         return []
 
-    data = response.json()
-    if "results" not in data or not data["results"]:
-        return []
 
-    # First match → get similar movies
-    movie_id = data["results"][0].get("id", "").split("/")[-2]
-    if not movie_id:
-        return []
+# ----------------- TMDB Metadata -----------------
+def fetch_tmdb_details(title):
+    url = f"https://api.themoviedb.org/3/search/movie"
+    params = {"api_key": TMDB_API_KEY, "query": title}
+    response = requests.get(url, params=params)
 
-    sim_url = f"https://imdb8.p.rapidapi.com/title/get-more-like-this"
-    sim_params = {"tconst": movie_id}
-    sim_response = requests.get(sim_url, headers=headers, params=sim_params)
-
-    if sim_response.status_code != 200:
-        return []
-
-    sim_data = sim_response.json()
-    movie_list = []
-    for item in sim_data:
-        movie_id_clean = item.split("/")[-2]
-        movie_list.append(movie_id_clean)
-
-    # Fetch titles for each similar movie
-    final_movies = []
-    for m_id in movie_list[:5]:
-        title_url = "https://imdb8.p.rapidapi.com/title/get-overview-details"
-        title_params = {"tconst": m_id}
-        title_resp = requests.get(title_url, headers=headers, params=title_params)
-        if title_resp.status_code == 200:
-            tdata = title_resp.json()
-            title = tdata.get("title", {}).get("title")
-            if title:
-                final_movies.append(title)
-
-    return final_movies
+    if response.status_code == 200:
+        data = response.json()
+        if data["results"]:
+            movie = data["results"][0]
+            return {
+                "title": movie["title"],
+                "overview": movie.get("overview", "No description available."),
+                "poster": f"https://image.tmdb.org/t/p/w500{movie['poster_path']}" if movie.get("poster_path") else None,
+                "release_date": movie.get("release_date", "N/A")
+            }
+    return {"title": title, "overview": "Not found", "poster": None, "release_date": "N/A"}
 
 
-# Cohere Fallback for Description-Based Recommendations
-def cohere_fallback(description):
-    co = cohere.Client(COHERE_API_KEY)
-    prompt = f"""
-    Suggest 5 movies based on the following description:
-    {description}
+# ----------------- YouTube Trailer -----------------
+def fetch_youtube_trailer(title):
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "snippet",
+        "q": f"{title} official trailer",
+        "key": YOUTUBE_API_KEY,
+        "maxResults": 1,
+        "type": "video"
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        if "items" in data and len(data["items"]) > 0:
+            video_id = data["items"][0]["id"]["videoId"]
+            return f"https://www.youtube.com/watch?v={video_id}"
+    return None
 
-    Provide only the movie titles in a list.
-    """
 
+# ----------------- Cohere Fallback -----------------
+def cohere_fallback(query):
     response = co.generate(
-        model="command-xlarge-nightly",
-        prompt=prompt,
+        model="command-r-plus",   # ✅ Updated model
+        prompt=f"Suggest 5 movies based on this description: {query}. Only return movie names, comma separated.",
         max_tokens=100,
         temperature=0.7
     )
-
     text = response.generations[0].text.strip()
-    movies = [line.strip("-• ") for line in text.split("\n") if line.strip()]
-    return movies[:5]
+    movies = [m.strip() for m in text.split(",") if m.strip()]
+    return movies
 
 
-# Master Recommendation Function
+# ----------------- Main Recommendation Function -----------------
 def recommend_movies(query):
-    # Try RapidAPI first (movie title flow)
-    similar_movies = search_imdb_similar(query)
-    if similar_movies:
-        return similar_movies
+    # Try searching IMDb first
+    imdb_results = search_imdb_similar(query)
 
-    # If no match, fallback to Cohere (description flow)
-    ai_movies = cohere_fallback(query)
-    return ai_movies
+    movies = []
+    if imdb_results:
+        for r in imdb_results:
+            details = fetch_tmdb_details(r["title"])
+            trailer = fetch_youtube_trailer(r["title"])
+            details["trailer"] = trailer
+            movies.append(details)
+    else:
+        # Fall back to Cohere if no IMDb results
+        ai_movies = cohere_fallback(query)
+        for m in ai_movies:
+            details = fetch_tmdb_details(m)
+            trailer = fetch_youtube_trailer(m)
+            details["trailer"] = trailer
+            movies.append(details)
+
+    return movies
