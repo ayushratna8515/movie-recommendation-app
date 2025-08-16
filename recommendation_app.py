@@ -5,7 +5,7 @@ import streamlit as st
 
 # Load API keys from Streamlit secrets
 RAPID_API_KEY = st.secrets["api_keys"]["rapidapi_key"]
-TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api_key"]
+TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api"]
 COHERE_API_KEY = st.secrets["api_keys"]["cohere_api"]
 YOUTUBE_API_KEY = st.secrets["api_keys"]["youtube_api"]
 
