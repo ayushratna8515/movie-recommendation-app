@@ -39,15 +39,15 @@ if query:
                     st.video(trailer_url)
                 else:
                     st.write("🎥 Trailer not found")
-
-    except Exception as e:
-        st.error(f"Error fetching recommendations: {e}"
-
-# Footer with a movie quote
+                    # Footer with a movie quote
 st.markdown("---")
 st.markdown(
     "<p style='text-align: center; font-style: italic; color: gray;'>"
     "🎥 'Movies touch our hearts and awaken our vision.' – Martin Scorsese"
     "</p>",
     unsafe_allow_html=True,
-)
+
+    except Exception as e:
+        st.error(f"Error fetching recommendations: {e}")
+
+
