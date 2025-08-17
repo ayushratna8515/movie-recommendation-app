@@ -1,51 +1,47 @@
 import streamlit as st
-import recommendation_app as ra  # Import the whole module
+import recommendation_app as ra
 
-# App title
-st.set_page_config(page_title="🎬 Movie Recommender", layout="wide")
-st.title("🍿AI Movie Recommender")
+st.set_page_config(page_title="AI Movie Recommender", layout="wide")
 
-# Input bar
-query = st.text_input("🎯 Enter a movie name or VIbe:", "")
+st.title("🍿 AI Movie Recommender")
+
+# Input
+query = st.text_input("🎬 Enter a movie name or Vibe:", placeholder="e.g. a coming of age teenage movie")
 
 if query:
-    st.write(f"🔍 Your Query: {query}")
+    st.write(f"🔎 Your Query: **{query}**")
 
-    with st.spinner("Fetching recommendations..."):
-        try:
-            # Call backend logic
-            movies = ra.recommend_movies(query)
-        except Exception as e:
-            st.error(f"Error fetching recommendations: {e}")
-            movies = []
+    try:
+        movies = ra.recommend_movies(query)
 
-    if movies:
         st.subheader("✨ Recommended Movies")
 
-        # Display as horizontal scroll cards
+        # Horizontal scrolling cards
         cols = st.columns(len(movies))
-        for idx, col in enumerate(cols):
-            with col:
-                movie = movies[idx]
 
+        for i, movie in enumerate(movies):
+            with cols[i]:
                 # Poster
                 poster_url = ra.get_movie_poster(movie)
-                st.image(poster_url, caption=movie, use_column_width=True)
+                st.image(poster_url, use_container_width=True)
 
-                # OTT info (placeholder for now)
-                st.markdown("**Available on:** Netflix / Prime (sample)")
+                # Title & overview (1-liner)
+                st.markdown(f"**{movie['title']}**")
+                st.caption(movie.get("overview", "No description available")[:120] + "...")
 
-                # Trailer
-                trailer_url = ra.get_youtube_trailer(movie)
+                # OTT availability
+                ott_info = ra.get_ott_availability(movie["title"])
+                st.markdown(f"**Available on:** {ott_info}")
+
+                # YouTube trailer
+                trailer_url = ra.get_youtube_trailer(movie["title"])
                 if trailer_url:
-                    st.markdown(
-                        f'<iframe width="100%" height="200" src="{trailer_url}" frameborder="0" allowfullscreen></iframe>',
-                        unsafe_allow_html=True,
-                    )
+                    st.video(trailer_url)
                 else:
                     st.write("🎥 Trailer not found")
-    else:
-        st.warning("No recommendations found. Try another query!")
+
+    except Exception as e:
+        st.error(f"Error fetching recommendations: {e}"
 
 # Footer with a movie quote
 st.markdown("---")
