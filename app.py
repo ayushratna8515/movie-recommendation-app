@@ -5,6 +5,12 @@ st.set_page_config(page_title="AI Movie Recommender", layout="wide")
 
 st.title("🍿 AI Movie Recommender")
 
+# 🎬 Inspirational Quote
+st.markdown(
+    "> *'Movies touch our hearts and awaken our vision.' – Martin Scorsese* 🎥",
+    unsafe_allow_html=True,
+)
+
 # Input
 query = st.text_input("🎬 Enter a movie name or Vibe:", placeholder="e.g. a coming of age teenage movie")
 
@@ -39,15 +45,6 @@ if query:
                     st.video(trailer_url)
                 else:
                     st.write("🎥 Trailer not found")
-                    # Footer with a movie quote
-st.markdown("---")
-st.markdown(
-    "<p style='text-align: center; font-style: italic; color: gray;'>"
-    "🎥 'Movies touch our hearts and awaken our vision.' – Martin Scorsese"
-    "</p>",
-    unsafe_allow_html=True,
 
     except Exception as e:
         st.error(f"Error fetching recommendations: {e}")
-
-
