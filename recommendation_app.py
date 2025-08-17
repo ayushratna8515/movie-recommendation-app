@@ -1,76 +1,89 @@
 import os
 import cohere
+
+
 import requests
 import streamlit as st
 
-# Load API keys from Streamlit secrets
-RAPID_API_KEY = st.secrets["api_keys"]["rapidapi_key"]
+# API Keys from Streamlit secrets
 TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api"]
 COHERE_API_KEY = st.secrets["api_keys"]["cohere_api"]
+RAPIDAPI_KEY = st.secrets["api_keys"]["rapidapi_key"]
 YOUTUBE_API_KEY = st.secrets["api_keys"]["youtube_api"]
 
-# IMDb Similar Movie Search via RapidAPI
-def search_imdb_similar(movie_title):
-    url = "https://imdb8.p.rapidapi.com/title/find"
-    headers = {"x-rapidapi-key": RAPID_API_KEY, "x-rapidapi-host": "imdb8.p.rapidapi.com"}
-    params = {"q": movie_title}
+# ✅ TMDB: Fetch movie poster
+def get_movie_poster(movie):
+    if "poster" in movie and movie["poster"]:
+        return movie["poster"]
+    # fallback poster
+    return "https://via.placeholder.com/300x450?text=No+Image"
 
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
+# ✅ YouTube: Fetch trailer
+def get_youtube_trailer(movie_title):
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "snippet",
+        "q": f"{movie_title} official trailer",
+        "key": YOUTUBE_API_KEY,
+        "type": "video",
+        "maxResults": 1
+    }
+    try:
+        response = requests.get(url, params=params, timeout=10)
         data = response.json()
-        if "results" in data:
-            return [m["title"] for m in data["results"] if "title" in m][:5]
-    return []
+        if "items" in data and len(data["items"]) > 0:
+            return f"https://www.youtube.com/watch?v={data['items'][0]['id']['videoId']}"
+        return None
+    except Exception:
+        return None
 
-# Cohere AI fallback for natural language queries
-# Cohere AI fallback for natural language queries (updated for Chat API)
-def cohere_recommend(query):
-    import cohere
-    co = cohere.Client(COHERE_API_KEY)
+# ✅ OTT availability in India via JustWatch API (RapidAPI)
+def get_ott_availability(movie_title):
+    url = "https://streaming-availability.p.rapidapi.com/v2/search/title"
+    querystring = {
+        "title": movie_title,
+        "country": "IN",
+        "show_type": "movie",
+    }
+
+    headers = {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": "streaming-availability.p.rapidapi.com"
+    }
 
     try:
-        response = co.chat(
-            model="command-r-plus",  # supported chat model
-            message=f"Suggest 5 movies for: {query}"
-        )
+        response = requests.get(url, headers=headers, params=querystring, timeout=10)
+        data = response.json()
 
-        if response.text:
-            movies = response.text.strip().split("\n")
-            return [m.strip(" -0123456789.") for m in movies if m.strip()][:5]
+        if "result" in data and len(data["result"]) > 0:
+            streaming_info = data["result"][0].get("streamingInfo", {}).get("in", {})
+            otts = []
+            for provider, provider_data in streaming_info.items():
+                otts.append(provider.capitalize())
+            return ", ".join(otts) if otts else "Not available on OTT"
+        return "Not available on OTT"
 
     except Exception as e:
-        print("Error from Cohere:", e)
-        return []
+        return f"Error fetching OTT info: {e}"
 
-    return []
-
-# TMDB poster fetch
-def get_movie_poster(title):
-    search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title}"
-    response = requests.get(search_url)
-    if response.status_code == 200:
-        data = response.json()
-        if data["results"]:
-            poster_path = data["results"][0].get("poster_path")
-            if poster_path:
-                return f"https://image.tmdb.org/t/p/w500{poster_path}"
-    return "https://via.placeholder.com/500x750?text=No+Image"
-
-# YouTube trailer fetch
-def get_youtube_trailer(title):
-    query = f"{title} trailer"
-    search_url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key={YOUTUBE_API_KEY}"
-    response = requests.get(search_url)
-    if response.status_code == 200:
-        data = response.json()
-        if "items" in data and data["items"]:
-            video_id = data["items"][0]["id"]["videoId"]
-            return f"https://www.youtube.com/embed/{video_id}"
-    return None
-
-# Main recommend function
+# Dummy recommendation function (replace with Cohere + TMDB later if needed)
 def recommend_movies(query):
-    movies = search_imdb_similar(query)
-    if not movies:  # fallback if IMDb fails
-        movies = cohere_recommend(query)
-    return movies[:5]
+    """
+    Currently returns dummy hardcoded movies.
+    Replace this with your Cohere/TMDB integration.
+    """
+    sample_movies = [
+        {
+            "title": "Lady Bird",
+            "overview": "A teenager navigates life, school and her turbulent relationship with her mother.",
+            "poster": "https://image.tmdb.org/t/p/w500/iyI4yYy3l6PvJEa3TBUnIFVnyG7.jpg",
+            "release_date": "2017-09-01",
+        },
+        {
+            "title": "The Perks of Being a Wallflower",
+            "overview": "A socially awkward teen befriends two seniors who welcome him to the real world.",
+            "poster": "https://image.tmdb.org/t/p/w500/aKCvdFFF5ph3p2doH0j0lY5D0Sm.jpg",
+            "release_date": "2012-09-20",
+        }
+    ]
+    return sample_movies
