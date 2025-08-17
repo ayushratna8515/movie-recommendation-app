@@ -1,89 +1,126 @@
 import os
-import cohere
+
 
 
 import requests
 import streamlit as st
+import cohere
 
-# API Keys from Streamlit secrets
+# Load API keys safely
+RAPIDAPI_KEY = st.secrets["api_keys"]["rapidapi_key"]
 TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api"]
 COHERE_API_KEY = st.secrets["api_keys"]["cohere_api"]
-RAPIDAPI_KEY = st.secrets["api_keys"]["rapidapi_key"]
 YOUTUBE_API_KEY = st.secrets["api_keys"]["youtube_api"]
 
-# ✅ TMDB: Fetch movie poster
-def get_movie_poster(movie):
-    if "poster" in movie and movie["poster"]:
-        return movie["poster"]
-    # fallback poster
-    return "https://via.placeholder.com/300x450?text=No+Image"
+# Initialize Cohere
+co = cohere.Client(COHERE_API_KEY)
 
-# ✅ YouTube: Fetch trailer
-def get_youtube_trailer(movie_title):
+
+# -----------------------------
+# TMDB Poster Fetch
+# -----------------------------
+def get_movie_poster(movie_id):
+    """Fetch poster URL for a movie from TMDB"""
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("poster_path"):
+            return f"https://image.tmdb.org/t/p/w500{data['poster_path']}"
+    return None
+
+
+# -----------------------------
+# YouTube Trailer Fetch
+# -----------------------------
+def get_youtube_trailer(query):
+    """Fetch first YouTube trailer link"""
     url = "https://www.googleapis.com/youtube/v3/search"
     params = {
         "part": "snippet",
-        "q": f"{movie_title} official trailer",
+        "q": f"{query} official trailer",
         "key": YOUTUBE_API_KEY,
-        "type": "video",
-        "maxResults": 1
+        "maxResults": 1,
+        "type": "video"
     }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        items = response.json().get("items")
+        if items:
+            return f"https://www.youtube.com/watch?v={items[0]['id']['videoId']}"
+    return None
+
+
+# -----------------------------
+# Cohere Fallback for Natural Language Queries
+# -----------------------------
+def cohere_fallback(query):
+    """Generate movie recommendations using Cohere when TMDB search fails"""
+    prompt = (
+        f"Suggest 5 movies for the description: {query}. "
+        "Return a JSON list with exactly 5 objects. "
+        "Each object must have keys: title, overview, release_date."
+    )
+
+    response = co.chat(
+        model="command-r-plus",  # ✅ using chat API (generate is deprecated)
+        message=prompt,
+    )
+
+    # Cohere sometimes outputs text → we parse manually
+    text_output = response.text
+    movies = []
     try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        if "items" in data and len(data["items"]) > 0:
-            return f"https://www.youtube.com/watch?v={data['items'][0]['id']['videoId']}"
-        return None
-    except Exception:
-        return None
+        import json
+        movies = json.loads(text_output)
+    except:
+        # crude parsing if JSON fails
+        for line in text_output.split("\n"):
+            if line.strip():
+                movies.append({
+                    "title": line.strip(),
+                    "overview": "No overview available",
+                    "release_date": "Unknown"
+                })
 
-# ✅ OTT availability in India via JustWatch API (RapidAPI)
-def get_ott_availability(movie_title):
-    url = "https://streaming-availability.p.rapidapi.com/v2/search/title"
-    querystring = {
-        "title": movie_title,
-        "country": "IN",
-        "show_type": "movie",
-    }
+    return movies[:5]
 
-    headers = {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "streaming-availability.p.rapidapi.com"
-    }
 
-    try:
-        response = requests.get(url, headers=headers, params=querystring, timeout=10)
-        data = response.json()
-
-        if "result" in data and len(data["result"]) > 0:
-            streaming_info = data["result"][0].get("streamingInfo", {}).get("in", {})
-            otts = []
-            for provider, provider_data in streaming_info.items():
-                otts.append(provider.capitalize())
-            return ", ".join(otts) if otts else "Not available on OTT"
-        return "Not available on OTT"
-
-    except Exception as e:
-        return f"Error fetching OTT info: {e}"
-
-# Dummy recommendation function (replace with Cohere + TMDB later if needed)
+# -----------------------------
+# Main Recommender
+# -----------------------------
 def recommend_movies(query):
-    """
-    Currently returns dummy hardcoded movies.
-    Replace this with your Cohere/TMDB integration.
-    """
-    sample_movies = [
-        {
-            "title": "Lady Bird",
-            "overview": "A teenager navigates life, school and her turbulent relationship with her mother.",
-            "poster": "https://image.tmdb.org/t/p/w500/iyI4yYy3l6PvJEa3TBUnIFVnyG7.jpg",
-            "release_date": "2017-09-01",
-        },
-        {
-            "title": "The Perks of Being a Wallflower",
-            "overview": "A socially awkward teen befriends two seniors who welcome him to the real world.",
-            "poster": "https://image.tmdb.org/t/p/w500/aKCvdFFF5ph3p2doH0j0lY5D0Sm.jpg",
-            "release_date": "2012-09-20",
-        }
-    ]
-    return sample_movies
+    """Fetch recommendations either from TMDB or fallback to Cohere"""
+    url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={query}"
+    response = requests.get(url)
+
+    movies = []
+
+    if response.status_code == 200:
+        data = response.json()
+        results = data.get("results", [])[:5]  # ✅ Always 5 results max
+
+        for movie in results:
+            movies.append({
+                "title": movie.get("title"),
+                "overview": movie.get("overview"),
+                "poster": f"https://image.tmdb.org/t/p/w500{movie['poster_path']}" if movie.get("poster_path") else None,
+                "release_date": movie.get("release_date", "Unknown"),
+                "trailer": get_youtube_trailer(movie.get("title")),
+                "ott": "Netflix / Prime (sample)"  # Placeholder
+            })
+
+    # If TMDB gives nothing → fallback
+    if not movies:
+        cohere_results = cohere_fallback(query)
+        for movie in cohere_results:
+            movies.append({
+                "title": movie.get("title"),
+                "overview": movie.get("overview"),
+                "poster": None,
+                "release_date": movie.get("release_date", "Unknown"),
+                "trailer": get_youtube_trailer(movie.get("title")),
+                "ott": "Not available on OTT"
+            })
+
+    return movies[:5]  # ✅ Ensure always 5
