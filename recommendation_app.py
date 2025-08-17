@@ -23,16 +23,25 @@ def search_imdb_similar(movie_title):
     return []
 
 # Cohere AI fallback for natural language queries
+# Cohere AI fallback for natural language queries (updated for Chat API)
 def cohere_recommend(query):
     import cohere
     co = cohere.Client(COHERE_API_KEY)
 
-    prompt = f"Suggest 5 movies for: {query}"
-    response = co.generate(model="command-xlarge-nightly", prompt=prompt, max_tokens=100)
+    try:
+        response = co.chat(
+            model="command-r-plus",  # supported chat model
+            message=f"Suggest 5 movies for: {query}"
+        )
 
-    if response.generations:
-        movies = response.generations[0].text.strip().split("\n")
-        return [m.strip(" -0123456789.") for m in movies if m.strip()][:5]
+        if response.text:
+            movies = response.text.strip().split("\n")
+            return [m.strip(" -0123456789.") for m in movies if m.strip()][:5]
+
+    except Exception as e:
+        print("Error from Cohere:", e)
+        return []
+
     return []
 
 # TMDB poster fetch
