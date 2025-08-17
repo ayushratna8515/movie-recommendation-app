@@ -3,10 +3,10 @@ import recommendation_app as ra  # Import the whole module
 
 # App title
 st.set_page_config(page_title="🎬 Movie Recommender", layout="wide")
-st.title("🍿 LoveCinema – Smart Movie Recommender")
+st.title("🍿AI Movie Recommender")
 
 # Input bar
-query = st.text_input("🎯 Enter a movie name or description:", "")
+query = st.text_input("🎯 Enter a movie name or VIbe:", "")
 
 if query:
     st.write(f"🔍 Your Query: {query}")
