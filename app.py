@@ -1,68 +1,115 @@
 import streamlit as st
-import requests
-from recommendation_app import recommend_movies
+from recommendation_app import recommend_movies, get_movie_poster, get_youtube_trailer
 
-# Load API keys from secrets.toml
-TMDB_API_KEY = st.secrets["api_keys"]["tmdb_api"]
-YOUTUBE_API_KEY = st.secrets["api_keys"]["youtube_api"]
+# ---------------- PAGE CONFIG ---------------- #
+st.set_page_config(
+    page_title="LoveCinema 🎬",
+    page_icon="🎥",
+    layout="wide"
+)
 
-# --- Helper Functions ---
-def get_movie_poster(title):
-    search_url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title}"
-    response = requests.get(search_url)
-    if response.status_code == 200:
-        data = response.json()
-        if data["results"]:
-            poster_path = data["results"][0].get("poster_path")
-            if poster_path:
-                return f"https://image.tmdb.org/t/p/w500{poster_path}"
-    return "https://via.placeholder.com/500x750?text=No+Image"
+# ---------------- HEADER ---------------- #
+st.markdown(
+    """
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #ffffff;
+        }
+        .movie-card {
+            background-color: #1c1c1c;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 10px;
+            text-align: center;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+            min-width: 250px;
+            max-width: 250px;
+            display: inline-block;
+            vertical-align: top;
+        }
+        .movie-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #f5c518;
+        }
+        .movie-synopsis {
+            font-size: 14px;
+            color: #cccccc;
+            margin: 10px 0;
+            height: 60px;
+            overflow: hidden;
+        }
+        .scrolling-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px;
+        }
+        .scrolling-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .scrolling-container::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+        .quote-banner {
+            font-size: 22px;
+            font-style: italic;
+            color: #f5c518;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-def get_youtube_trailer(title):
-    query = f"{title} trailer"
-    search_url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=1&q={query}&key={YOUTUBE_API_KEY}"
-    response = requests.get(search_url)
-    if response.status_code == 200:
-        data = response.json()
-        if data["items"]:
-            video_id = data["items"][0]["id"]["videoId"]
-            return f"https://www.youtube.com/embed/{video_id}"
-    return None
+st.title("🍿 LoveCinema – Your Movie Recommendation Hub")
 
-# --- Streamlit UI ---
-st.set_page_config(layout="wide")
-st.title("🎬 AI Movie Recommendation App")
+# Random movie quote banner
+st.markdown(
+    '<div class="quote-banner">"Cinema is a matter of what’s in the frame and what’s out." – Martin Scorsese</div>',
+    unsafe_allow_html=True
+)
 
-st.markdown("""
-<style>
-body {background-color: #111;}
-h1 {color: #FFD700;}
-.movie-card {
-    background-color: #222;
-    padding: 10px;
-    border-radius: 12px;
-    text-align: center;
-    color: white;
-}
-</style>
-""", unsafe_allow_html=True)
+# ---------------- INPUT PANEL ---------------- #
+query = st.text_input("🎯 Enter a movie name or describe the vibe you want:", "")
 
-query = st.text_input("Enter a movie name or describe the vibe 🎥")
-if st.button("Get Recommendations"):
-    if query.strip():
+if query:
+    with st.spinner("Fetching recommendations... 🎬"):
         movies = recommend_movies(query)
-        if not movies:
-            st.warning("No recommendations found.")
-        else:
-            cols = st.columns(len(movies))
-            for idx, col in enumerate(cols):
-                movie = movies[idx]
-                poster_url = get_movie_poster(movie)
-                trailer_url = get_youtube_trailer(movie)
-                with col:
-                    st.markdown(f"<div class='movie-card'><b>{movie}</b></div>", unsafe_allow_html=True)
-                    st.image(poster_url, use_column_width=True)
-                    if trailer_url:
-                        st.markdown(f'<iframe width="100%" height="200" src="{trailer_url}" frameborder="0" allowfullscreen></iframe>', unsafe_allow_html=True)
+
+    if movies:
+        st.subheader("✨ Recommended Movies for You:")
+
+        st.markdown('<div class="scrolling-container">', unsafe_allow_html=True)
+
+        for movie in movies:
+            poster_url = get_movie_poster(movie)
+            trailer_url = get_youtube_trailer(movie)
+
+            # Build each card
+            card_html = f"""
+            <div class="movie-card">
+                <img src="{poster_url}" width="200" style="border-radius:10px;">
+                <div class="movie-title">{movie}</div>
+                <div class="movie-synopsis">A must-watch film picked just for you!</div>
+            """
+            if trailer_url:
+                card_html += f"""
+                <iframe width="200" height="120" src="{trailer_url}" frameborder="0" allowfullscreen></iframe>
+                """
+            else:
+                card_html += "<p style='color:grey;font-size:12px;'>Trailer not found</p>"
+
+            card_html += "</div>"  # close card
+
+            st.markdown(card_html, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
     else:
-        st.error("Please enter a movie name or description.")
+        st.error("❌ No movies found. Try another query!")
+else:
+    st.info("🔎 Start by entering a movie name or description above.")
