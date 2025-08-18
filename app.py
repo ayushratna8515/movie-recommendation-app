@@ -119,10 +119,8 @@ if st.button("✨ Recommend") and query.strip():
     else:
         # Horizontal scroll container
         st.markdown('<div class="helper">Swipe/scroll horizontally to see more →</div>', unsafe_allow_html=True)
-        st.markdown('<div class="scroll-wrap"><div class="scroll-track">', unsafe_allow_html=True)
 
-        # Build cards in one row
-        cards_html = []
+        cards_html = ""
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
             overview = (m.get("overview") or "No overview available").strip()
@@ -151,7 +149,7 @@ if st.button("✨ Recommend") and query.strip():
                 search_q = quote_plus(f"{title} trailer")
                 trailer_iframe = f'<a target="_blank" class="badge" href="https://www.youtube.com/results?search_query={search_q}">Search trailer ▶</a>'
 
-            card_html = f"""
+            cards_html += f"""
                 <div class="card">
                     <img class="poster" src="{poster}" alt="Poster for {title}">
                     <div class="card-body">
@@ -162,8 +160,9 @@ if st.button("✨ Recommend") and query.strip():
                     </div>
                 </div>
             """
-            cards_html.append(card_html)
 
-        # ✅ Put all cards inline (horizontal row)
-        st.markdown("".join(cards_html), unsafe_allow_html=True)
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        # ✅ All cards inside single scroll container
+        st.markdown(
+            f'<div class="scroll-wrap"><div class="scroll-track">{cards_html}</div></div>',
+            unsafe_allow_html=True
+        )
