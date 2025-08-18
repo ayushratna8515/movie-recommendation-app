@@ -117,7 +117,7 @@ if st.button("✨ Recommend") and query.strip():
     if not movies:
         st.warning("No recommendations found. Try another title or refine your vibe.")
     else:
-        # Build cards HTML
+        # ✅ Build horizontal scroll cards properly
         cards_html = ""
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
@@ -127,7 +127,6 @@ if st.button("✨ Recommend") and query.strip():
             poster = m.get("poster") or "https://via.placeholder.com/500x750?text=No+Poster"
             poster = html.escape(poster)
 
-            # OTT platforms as badges
             ott_text = m.get("ott") or "Not available on OTT"
             if isinstance(ott_text, list):
                 ott_list = ott_text
@@ -138,7 +137,6 @@ if st.button("✨ Recommend") and query.strip():
 
             badges_html = "".join([f'<span class="badge">{html.escape(x)}</span>' for x in ott_list[:5]])
 
-            # Trailer embed
             trailer_url = m.get("trailer") or ""
             if trailer_url:
                 embed_url = trailer_url.replace("watch?v=", "embed/")
@@ -159,13 +157,13 @@ if st.button("✨ Recommend") and query.strip():
                 </div>
             """
 
-        # ✅ Render all cards inline inside one scroll container
         final_html = f"""
         <div class="helper">Swipe/scroll horizontally to see more →</div>
         <div class="scroll-wrap">
-          <div class="scroll-track">
-            {cards_html}
-          </div>
+            <div class="scroll-track">
+                {cards_html}
+            </div>
         </div>
         """
+
         st.markdown(final_html, unsafe_allow_html=True)
