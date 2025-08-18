@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# Styles (Netflix-like horizontal scroll)
+# Styles (Netflix-like horizontal scroll + center align)
 # ------------------------------------------------
 st.markdown("""
 <style>
@@ -28,11 +28,12 @@ body, .stApp { background: #0e0e0f; }
   white-space: nowrap;
   padding: 8px 4px 12px;
   -webkit-overflow-scrolling: touch;
+  text-align: center; /* ✅ Center align the scroll content */
 }
 .scroll-track {
-  display: flex;          /* ✅ changed */
-  flex-wrap: nowrap;      /* ✅ prevents wrapping */
+  display: inline-flex;
   gap: 16px;
+  justify-content: center; /* ✅ Center cards */
 }
 
 .card {
@@ -42,7 +43,6 @@ body, .stApp { background: #0e0e0f; }
   box-shadow: 0 8px 20px rgba(0,0,0,.35);
   width: 260px;
   min-width: 260px;
-  flex: 0 0 auto;         /* ✅ keeps cards horizontal */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -119,16 +119,22 @@ if st.button("✨ Recommend") and query.strip():
     if not movies:
         st.warning("No recommendations found. Try another title or refine your vibe.")
     else:
-        # ✅ Build horizontal scroll cards properly
+        # Horizontal scroll container
+        st.markdown('<div class="helper">Swipe/scroll horizontally to see more →</div>', unsafe_allow_html=True)
+        st.markdown('<div class="scroll-wrap"><div class="scroll-track">', unsafe_allow_html=True)
+
+        # Build cards in one row
         cards_html = ""
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
             overview = (m.get("overview") or "No overview available").strip()
             overview_short = (overview[:150] + "…") if len(overview) > 150 else overview
             overview_short = html.escape(overview_short)
-            poster = m.get("poster") or "https://via.placeholder.com/500x750?text=No+Poster"
-            poster = html.escape(poster)
 
+            # ✅ Don't escape poster URL
+            poster = m.get("poster") or "https://via.placeholder.com/500x750?text=No+Poster"
+
+            # OTT platforms as badges
             ott_text = m.get("ott") or "Not available on OTT"
             if isinstance(ott_text, list):
                 ott_list = ott_text
@@ -139,14 +145,16 @@ if st.button("✨ Recommend") and query.strip():
 
             badges_html = "".join([f'<span class="badge">{html.escape(x)}</span>' for x in ott_list[:5]])
 
+            # Trailer embed
             trailer_url = m.get("trailer") or ""
             if trailer_url:
                 embed_url = trailer_url.replace("watch?v=", "embed/")
-                trailer_iframe = f'<iframe class="trailer" src="{html.escape(embed_url)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+                trailer_iframe = f'<iframe class="trailer" src="{embed_url}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
             else:
                 search_q = quote_plus(f"{title} trailer")
                 trailer_iframe = f'<a target="_blank" class="badge" href="https://www.youtube.com/results?search_query={search_q}">Search trailer ▶</a>'
 
+            # ✅ Raw HTML card (not escaped)
             cards_html += f"""
                 <div class="card">
                     <img class="poster" src="{poster}" alt="Poster for {title}">
@@ -159,13 +167,6 @@ if st.button("✨ Recommend") and query.strip():
                 </div>
             """
 
-        final_html = f"""
-        <div class="helper">Swipe/scroll horizontally to see more →</div>
-        <div class="scroll-wrap">
-            <div class="scroll-track">
-                {cards_html}
-            </div>
-        </div>
-        """
-
-        st.markdown(final_html, unsafe_allow_html=True)
+        # ✅ Render inline cards (horizontal row, center aligned)
+        st.markdown(cards_html, unsafe_allow_html=True)
+        st.markdown('</div></div>', unsafe_allow_html=True)
