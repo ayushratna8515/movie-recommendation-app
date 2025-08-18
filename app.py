@@ -117,20 +117,15 @@ if st.button("✨ Recommend") and query.strip():
     if not movies:
         st.warning("No recommendations found. Try another title or refine your vibe.")
     else:
-        # Horizontal scroll container
-        st.markdown('<div class="helper">Swipe/scroll horizontally to see more →</div>', unsafe_allow_html=True)
-        st.markdown('<div class="scroll-wrap"><div class="scroll-track">', unsafe_allow_html=True)
-
-        # Build cards in one row
+        # Build cards HTML
         cards_html = ""
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
             overview = (m.get("overview") or "No overview available").strip()
             overview_short = (overview[:150] + "…") if len(overview) > 150 else overview
             overview_short = html.escape(overview_short)
-
-            # ✅ Don't escape poster URL
             poster = m.get("poster") or "https://via.placeholder.com/500x750?text=No+Poster"
+            poster = html.escape(poster)
 
             # OTT platforms as badges
             ott_text = m.get("ott") or "Not available on OTT"
@@ -147,12 +142,11 @@ if st.button("✨ Recommend") and query.strip():
             trailer_url = m.get("trailer") or ""
             if trailer_url:
                 embed_url = trailer_url.replace("watch?v=", "embed/")
-                trailer_iframe = f'<iframe class="trailer" src="{embed_url}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+                trailer_iframe = f'<iframe class="trailer" src="{html.escape(embed_url)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
             else:
                 search_q = quote_plus(f"{title} trailer")
                 trailer_iframe = f'<a target="_blank" class="badge" href="https://www.youtube.com/results?search_query={search_q}">Search trailer ▶</a>'
 
-            # ✅ Raw HTML card (not escaped)
             cards_html += f"""
                 <div class="card">
                     <img class="poster" src="{poster}" alt="Poster for {title}">
@@ -165,6 +159,13 @@ if st.button("✨ Recommend") and query.strip():
                 </div>
             """
 
-        # ✅ Render inline cards (horizontal row)
-        st.markdown(cards_html, unsafe_allow_html=True)
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        # ✅ Render all cards inline inside one scroll container
+        final_html = f"""
+        <div class="helper">Swipe/scroll horizontally to see more →</div>
+        <div class="scroll-wrap">
+          <div class="scroll-track">
+            {cards_html}
+          </div>
+        </div>
+        """
+        st.markdown(final_html, unsafe_allow_html=True)
