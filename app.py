@@ -30,7 +30,8 @@ body, .stApp { background: #0e0e0f; }
   -webkit-overflow-scrolling: touch;
 }
 .scroll-track {
-  display: inline-flex;
+  display: flex;          /* ✅ changed */
+  flex-wrap: nowrap;      /* ✅ prevents wrapping */
   gap: 16px;
 }
 
@@ -41,6 +42,7 @@ body, .stApp { background: #0e0e0f; }
   box-shadow: 0 8px 20px rgba(0,0,0,.35);
   width: 260px;
   min-width: 260px;
+  flex: 0 0 auto;         /* ✅ keeps cards horizontal */
   display: flex;
   flex-direction: column;
   overflow: hidden;
