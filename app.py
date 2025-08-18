@@ -120,6 +120,7 @@ if st.button("✨ Recommend") and query.strip():
         # Horizontal scroll container
         st.markdown('<div class="helper">Swipe/scroll horizontally to see more →</div>', unsafe_allow_html=True)
 
+        # Build cards in one row
         cards_html = ""
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
@@ -161,8 +162,12 @@ if st.button("✨ Recommend") and query.strip():
                 </div>
             """
 
-        # ✅ All cards inside single scroll container
-        st.markdown(
-            f'<div class="scroll-wrap"><div class="scroll-track">{cards_html}</div></div>',
-            unsafe_allow_html=True
-        )
+        # ✅ Wrap everything in scroll container
+        final_html = f"""
+        <div class="scroll-wrap">
+            <div class="scroll-track">
+                {cards_html}
+            </div>
+        </div>
+        """
+        st.markdown(final_html, unsafe_allow_html=True)
