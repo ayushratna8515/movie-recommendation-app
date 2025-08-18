@@ -25,15 +25,14 @@ body, .stApp { background: #0e0e0f; }
 .scroll-wrap {
   overflow-x: auto;
   overflow-y: hidden;
-  white-space: nowrap;
   padding: 8px 4px 12px;
   -webkit-overflow-scrolling: touch;
-  text-align: center; /* ✅ Center align the scroll content */
 }
 .scroll-track {
-  display: inline-flex;
+  display: flex;
   gap: 16px;
-  justify-content: center; /* ✅ Center cards */
+  justify-content: center;   /* ✅ Center align cards */
+  flex-wrap: wrap;           /* ✅ Allow wrapping on small screens */
 }
 
 .card {
