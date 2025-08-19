@@ -103,11 +103,12 @@ query = st.text_input(
 st.markdown('<div class="quote">"Movies touch our hearts and awaken our vision." – Martin Scorsese</div>', unsafe_allow_html=True)
 
 if query.strip():
-    try:
-        movies = ra.recommend_movies(query.strip())
-    except Exception as e:
-        st.error(f"Error fetching recommendations: {e}")
-        movies = []
+    with st.spinner("🍿 Grabbing your popcorn & finding movies..."):
+        try:
+            movies = ra.recommend_movies(query.strip())
+        except Exception as e:
+            st.error(f"Error fetching recommendations: {e}")
+            movies = []
 
     if not movies:
         st.warning("No recommendations found. Try another title or refine your vibe.")
