@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ------------------------------------------------
-# Styles (Netflix-like horizontal scroll + center align)
+# Styles (Netflix-like horizontal scroll)
 # ------------------------------------------------
 st.markdown("""
 <style>
@@ -25,14 +25,13 @@ body, .stApp { background: #0e0e0f; }
 .scroll-wrap {
   overflow-x: auto;
   overflow-y: hidden;
+  white-space: nowrap;
   padding: 8px 4px 12px;
   -webkit-overflow-scrolling: touch;
 }
 .scroll-track {
-  display: flex;
+  display: inline-flex;
   gap: 16px;
-  justify-content: center;   /* ✅ Center align cards */
-  flex-wrap: wrap;           /* ✅ Allow wrapping on small screens */
 }
 
 .card {
@@ -105,8 +104,7 @@ st.markdown('<div class="quote">"Movies touch our hearts and awaken our vision."
 query = st.text_input("🎬 Enter a movie name or a vibe (e.g., “coming-of-age in New York”):", "")
 st.markdown('<div class="input-help">Tip: Try a title like <i>Tamasha</i> or a vibe like <i>nostalgic 90s romcom</i>.</div>', unsafe_allow_html=True)
 
-# ✅ Recommend CTA button
-if st.button("✨ Recommend") and query.strip():
+if query.strip():
     st.write(f"🔎 Your Query: **{query.strip()}**")
 
     try:
@@ -122,22 +120,22 @@ if st.button("✨ Recommend") and query.strip():
         st.markdown('<div class="helper">Swipe/scroll horizontally to see more →</div>', unsafe_allow_html=True)
         st.markdown('<div class="scroll-wrap"><div class="scroll-track">', unsafe_allow_html=True)
 
-        # Build cards in one row
-        cards_html = ""
+        # Build cards as HTML for smooth layout
+        cards_html = []
         for m in movies:
             title = html.escape(m.get("title") or "Unknown Title")
             overview = (m.get("overview") or "No overview available").strip()
             overview_short = (overview[:150] + "…") if len(overview) > 150 else overview
             overview_short = html.escape(overview_short)
-
-            # ✅ Don't escape poster URL
             poster = m.get("poster") or "https://via.placeholder.com/500x750?text=No+Poster"
+            poster = html.escape(poster)
 
             # OTT platforms as badges
             ott_text = m.get("ott") or "Not available on OTT"
             if isinstance(ott_text, list):
                 ott_list = ott_text
             else:
+                # Attempt to split string into items if comma-separated
                 ott_list = [x.strip() for x in str(ott_text).split(",") if x.strip()]
             if not ott_list:
                 ott_list = ["Not available on OTT"]
@@ -147,14 +145,15 @@ if st.button("✨ Recommend") and query.strip():
             # Trailer embed
             trailer_url = m.get("trailer") or ""
             if trailer_url:
+                # Convert watch URL → embed
                 embed_url = trailer_url.replace("watch?v=", "embed/")
-                trailer_iframe = f'<iframe class="trailer" src="{embed_url}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+                trailer_iframe = f'<iframe class="trailer" src="{html.escape(embed_url)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
             else:
+                # Fallback: search link
                 search_q = quote_plus(f"{title} trailer")
                 trailer_iframe = f'<a target="_blank" class="badge" href="https://www.youtube.com/results?search_query={search_q}">Search trailer ▶</a>'
 
-            # ✅ Raw HTML card (not escaped)
-            cards_html += f"""
+            card_html = f"""
                 <div class="card">
                     <img class="poster" src="{poster}" alt="Poster for {title}">
                     <div class="card-body">
@@ -165,7 +164,7 @@ if st.button("✨ Recommend") and query.strip():
                     </div>
                 </div>
             """
+            cards_html.append(card_html)
 
-        # ✅ Render inline cards (horizontal row, center aligned)
-        st.markdown(cards_html, unsafe_allow_html=True)
+        st.markdown("".join(cards_html), unsafe_allow_html=True)
         st.markdown('</div></div>', unsafe_allow_html=True)
